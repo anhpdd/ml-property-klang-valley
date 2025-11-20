@@ -422,7 +422,7 @@ For technical implementation questions, please:
 
 1. **Check the notebooks:** Most implementation details are in [`notebooks/`](notebooks/)
 2. **Review model specs:** See [`models/README.md`](models/README.md)
-3. **Open a GitHub issue:** [Issues page](https://github.com/anhpdd/ml-property-valuation-klang-valley/issues)
+3. **Open a GitHub issue:** [Issues page](https://github.com/anhpdd/ml-property-klang-valley/issues)
 
 **Author:** Anh Phan (Robin)  
 **Email:** duyanh.phanduc@gmail.com  
