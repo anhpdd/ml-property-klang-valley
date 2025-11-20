@@ -173,7 +173,7 @@ For an agency processing **200 valuations per month**:
 
 ## 🗂️ Project Structure
 ```
-ml-property-valuation-klang-valley/
+ml-property-klang-valley/
 ├── README.md                    # This file (business overview)
 ├── TECHNICAL.md                 # Technical deep dive
 ├── requirements.txt             # Python dependencies
@@ -222,8 +222,8 @@ ml-property-valuation-klang-valley/
 
 1. **Clone the repository:**
 ```bash
-   git clone https://github.com/anhpdd/ml-property-valuation-klang-valley.git
-   cd ml-property-valuation-klang-valley
+   git clone https://github.com/anhpdd/ml-property-klang-valley.git
+   cd ml-property-klang-valley
 ```
 
 2. **Create a virtual environment (recommended):**
