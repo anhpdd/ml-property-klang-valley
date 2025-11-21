@@ -18,20 +18,63 @@ from sklearn.metrics import (
 logger = logging.getLogger(__name__)
 
 
-def mean_absolute_percentage_error(y_true: np.ndarray, y_pred: np.ndarray) -> float:
+def mean_absolute_percentage_error(
+    y_true: np.ndarray,
+    y_pred: np.ndarray,
+    zero_handling: str = 'exclude'
+) -> float:
     """
-    Calculate Mean Absolute Percentage Error (MAPE).
+    Calculate Mean Absolute Percentage Error (MAPE) with zero handling.
 
     Args:
         y_true: Actual values
         y_pred: Predicted values
+        zero_handling: How to handle zero values in y_true:
+            - 'exclude': Remove zero values from calculation (default)
+            - 'epsilon': Replace zeros with small epsilon value
+            - 'raise': Raise ValueError if zeros present
 
     Returns:
         float: MAPE as a percentage (0-100)
 
+    Raises:
+        ValueError: If zero_handling='raise' and zeros are present,
+                   or if all values are zero/excluded
+
     Note:
         MAPE should ONLY be calculated in original scale (RM/m²), NOT in log-space.
     """
+    y_true = np.asarray(y_true)
+    y_pred = np.asarray(y_pred)
+
+    # Check for zero or very small values
+    zero_mask = np.abs(y_true) < 1e-10
+
+    if zero_mask.any():
+        zero_count = zero_mask.sum()
+
+        if zero_handling == 'raise':
+            raise ValueError(
+                f"y_true contains {zero_count} zero/near-zero values. "
+                f"MAPE cannot be calculated with zeros in denominator."
+            )
+        elif zero_handling == 'exclude':
+            logger.warning(
+                f"Excluding {zero_count} zero/near-zero values from MAPE calculation."
+            )
+            y_true = y_true[~zero_mask]
+            y_pred = y_pred[~zero_mask]
+
+            if len(y_true) == 0:
+                raise ValueError("All values are zero - cannot calculate MAPE.")
+        elif zero_handling == 'epsilon':
+            logger.warning(
+                f"Replacing {zero_count} zero values with epsilon for MAPE calculation."
+            )
+            y_true = np.where(zero_mask, 1e-10, y_true)
+        else:
+            raise ValueError(f"Unknown zero_handling mode: {zero_handling}")
+
     mape = sklearn_mape(y_true, y_pred) * 100
     return mape
 
@@ -84,7 +127,26 @@ def calculate_price_accuracy(
 
     Returns:
         dict: Accuracy metrics
+
+    Raises:
+        ValueError: If all y_true values are zero
     """
+    y_true = np.asarray(y_true)
+    y_pred = np.asarray(y_pred)
+
+    # Handle zero values safely
+    zero_mask = np.abs(y_true) < 1e-10
+    if zero_mask.all():
+        raise ValueError("All y_true values are zero - cannot calculate accuracy.")
+
+    if zero_mask.any():
+        zero_count = zero_mask.sum()
+        logger.warning(
+            f"Excluding {zero_count} zero values from accuracy calculation."
+        )
+        y_true = y_true[~zero_mask]
+        y_pred = y_pred[~zero_mask]
+
     errors = np.abs(y_true - y_pred) / y_true
 
     within_tolerance = (errors <= tolerance).sum()
@@ -93,7 +155,7 @@ def calculate_price_accuracy(
     return {
         'accuracy_within_tolerance': accuracy_pct,
         'tolerance': tolerance * 100,
-        'n_within_tolerance': within_tolerance,
+        'n_within_tolerance': int(within_tolerance),
         'n_total': len(y_true)
     }
 

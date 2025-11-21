@@ -18,6 +18,50 @@ from ..config import (
 logger = logging.getLogger(__name__)
 
 
+class OSMQueryError(Exception):
+    """Raised when OSM query fails after all retries."""
+    pass
+
+
+# Transient errors that should be retried
+TRANSIENT_ERROR_TYPES = (
+    ConnectionError,
+    TimeoutError,
+    OSError,  # Network errors
+)
+
+# Error messages indicating rate limiting
+RATE_LIMIT_MESSAGES = [
+    'too many requests',
+    'rate limit',
+    '429',
+    'quota exceeded',
+]
+
+
+def _is_transient_error(error: Exception) -> bool:
+    """
+    Check if an error is transient and should be retried.
+
+    Args:
+        error: The exception that occurred
+
+    Returns:
+        bool: True if error is transient
+    """
+    # Check error type
+    if isinstance(error, TRANSIENT_ERROR_TYPES):
+        return True
+
+    # Check error message for rate limiting
+    error_msg = str(error).lower()
+    for msg in RATE_LIMIT_MESSAGES:
+        if msg in error_msg:
+            return True
+
+    return False
+
+
 def query_osm_with_retry(
     query_func,
     *args,
@@ -39,29 +83,52 @@ def query_osm_with_retry(
         Query results
 
     Raises:
-        Exception: If all retries fail
+        OSMQueryError: If all retries fail or non-transient error occurs
     """
+    last_error = None
+
     for attempt in range(max_retries):
+        # Rate limiting BEFORE request to prevent hitting limits
+        if attempt > 0:
+            wait_time = backoff ** attempt
+            logger.info(f"Waiting {wait_time:.1f}s before retry...")
+            time.sleep(wait_time)
+        else:
+            # Still apply rate limit on first request
+            time.sleep(OSM_API_RATE_LIMIT)
+
         try:
             logger.debug(f"OSM query attempt {attempt + 1}/{max_retries}")
             result = query_func(*args, **kwargs)
-
-            # Rate limiting
-            time.sleep(OSM_API_RATE_LIMIT)
-
             return result
 
+        except KeyboardInterrupt:
+            # Don't catch user interrupts
+            raise
+
+        except SystemExit:
+            # Don't catch system exit
+            raise
+
         except Exception as e:
+            last_error = e
+
+            # Check if error is transient
+            if not _is_transient_error(e):
+                logger.error(f"Non-transient OSM error (not retrying): {type(e).__name__}: {e}")
+                raise OSMQueryError(f"OSM query failed with non-transient error: {e}") from e
+
             if attempt < max_retries - 1:
-                wait_time = backoff ** attempt
                 logger.warning(
-                    f"OSM query failed (attempt {attempt + 1}/{max_retries}): {e}. "
-                    f"Retrying in {wait_time}s..."
+                    f"OSM query failed (attempt {attempt + 1}/{max_retries}): "
+                    f"{type(e).__name__}: {e}"
                 )
-                time.sleep(wait_time)
             else:
                 logger.error(f"OSM query failed after {max_retries} attempts: {e}")
-                raise
+
+    raise OSMQueryError(
+        f"OSM query failed after {max_retries} attempts. Last error: {last_error}"
+    ) from last_error
 
 
 def check_osm_rate_limit() -> None:
