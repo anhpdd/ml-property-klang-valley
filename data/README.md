@@ -80,8 +80,8 @@ from src.data.validation import validate_property_data
 from src.features.geospatial import extract_amenity_features
 from src.features.clustering import cluster_market_segments
 
-# Load and process data
-df = load_raw_data('data/raw/properties.csv')
+# Load and process data (with built-in security validation)
+df = load_raw_data('data/raw/properties.csv')  # Validates path & file size
 df_geocoded = geocode_properties(df)
 df_features = extract_amenity_features(df_geocoded)
 df_clustered = cluster_market_segments(df_features)
@@ -89,6 +89,18 @@ df_clustered = cluster_market_segments(df_features)
 # Save interim results
 save_interim_data(df_clustered, 'data/interim/clustered.csv')
 ```
+
+### Security Features
+
+The data loading utilities include built-in security measures:
+
+| Feature | Description |
+|---------|-------------|
+| **Path Validation** | Prevents path traversal attacks (files must be within project) |
+| **File Size Limits** | 500MB limit prevents memory exhaustion attacks |
+| **Safe Division** | Handles `land_m2 = 0` to prevent infinite values in `price_m2` |
+
+See [tests/test_security.py](../tests/test_security.py) for security test coverage.
 
 **Requirements:**
 - Python 3.9+
