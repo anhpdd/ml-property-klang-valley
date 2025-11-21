@@ -54,8 +54,31 @@ def clean_property_data(df: pd.DataFrame) -> pd.DataFrame:
     # Recalculate price_m2 based on land area (more accurate than property area)
     if 'transaction_price' in df.columns and 'land_m2' in df.columns:
         df.drop(columns='price_m2', errors='ignore', inplace=True)
-        df['price_m2'] = df['transaction_price'] / df['land_m2']
-        logger.info("Recalculated price_m2 based on land_m2")
+
+        # Check for zero or negative land_m2 values to prevent division by zero
+        invalid_land = (df['land_m2'] <= 0) | df['land_m2'].isna()
+        invalid_count = invalid_land.sum()
+
+        if invalid_count > 0:
+            logger.warning(
+                f"Found {invalid_count} properties with invalid land_m2 (<=0 or NaN). "
+                f"These will have price_m2 set to NaN and should be filtered out."
+            )
+
+        # Safe division - invalid values become NaN
+        df['price_m2'] = df['transaction_price'] / df['land_m2'].replace(0, np.nan)
+
+        # Check for infinite values that might result from very small land_m2
+        inf_count = np.isinf(df['price_m2']).sum()
+        if inf_count > 0:
+            logger.warning(
+                f"Found {inf_count} infinite price_m2 values (likely from very small land_m2). "
+                f"Setting these to NaN."
+            )
+            df.loc[np.isinf(df['price_m2']), 'price_m2'] = np.nan
+
+        valid_count = df['price_m2'].notna().sum()
+        logger.info(f"Recalculated price_m2 based on land_m2 ({valid_count} valid values)")
 
     # Convert negative unit levels (LG = Lower Ground) to 0 (Ground)
     if 'unit_level' in df.columns:
