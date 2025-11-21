@@ -242,12 +242,14 @@ with open('scaler_pre2025.pkl', 'wb') as f:
 from src.models.predictor import PropertyPredictor
 
 # High-level API handles loading, scaling, and inverse transformation
+# Includes security validation: path checks, feature validation, hash verification
 predictor = PropertyPredictor(
     model_path='models/production_model_rf_pre2025.pkl',
     scaler_path='models/scaler_pre2025.pkl'
 )
 
 # Make predictions (returns RM/m² automatically)
+# Validates: 279 features, no NaN/Inf values, positive predictions
 predictions = predictor.predict(X_new)
 print(f"Predicted price: RM {predictions[0]:,.2f} per m²")
 ```
@@ -312,6 +314,23 @@ y_pred = np.expm1(model.predict(X_scaled))
 print(f"Predicted: RM {y_pred[0]:,.2f}/m²")
 # Expected: ~RM 35,000-40,000/m² (KLCC luxury segment)
 ```
+
+---
+
+## 🔒 Security Considerations
+
+The `PropertyPredictor` class includes security measures for safe deployment:
+
+| Feature | Description |
+|---------|-------------|
+| **Path Validation** | Model files must be within `models/` directory |
+| **Hash Verification** | Optional SHA256 verification to detect tampered files |
+| **Feature Validation** | Rejects inputs with wrong feature count, NaN, or Inf values |
+| **Pickle Warning** | Logs security warning before loading pickle files |
+
+**Important:** Pickle files can execute arbitrary code. Only load models from trusted sources. For enhanced security, consider using [skops.io](https://skops.github.io/skops/) for model serialization.
+
+See [tests/test_security.py](../tests/test_security.py) for security test coverage.
 
 ---
 

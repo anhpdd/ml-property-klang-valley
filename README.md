@@ -199,10 +199,13 @@ ml-property-klang-valley/
 │   ├── models/                 # Training & prediction
 │   ├── utils/                  # Helper functions
 │   └── scripts/                # CLI tools
-├── tests/                       # Test suite
-│   ├── test_config.py
-│   ├── test_data_loaders.py
-│   └── test_utils_metrics.py
+├── tests/                       # Test suite (50+ tests)
+│   ├── test_config.py          # Configuration tests
+│   ├── test_data_loaders.py    # Data loading tests
+│   ├── test_utils_metrics.py   # Metrics & MAPE tests
+│   ├── test_security.py        # Security validation tests
+│   ├── test_preprocessing.py   # Data preprocessing tests
+│   └── test_osm.py             # OSM API retry logic tests
 └── visualizations/              # Charts and maps
     ├── rf_baseline_perf.jpg
     ├── feature_importance.png
@@ -311,6 +314,25 @@ No installation needed! Just open the notebooks directly in Colab:
 **Visualization:** Matplotlib, Seaborn
 
 **Clustering:** DBSCAN, K-Means
+
+**Testing:** pytest (50+ tests covering security, preprocessing, metrics)
+
+---
+
+## 🔒 Security Features
+
+The production package includes security measures for safe deployment:
+
+| Feature | Description |
+|---------|-------------|
+| **Path Traversal Protection** | Validates file paths stay within project boundaries |
+| **File Size Limits** | Prevents memory exhaustion from oversized files (500MB limit) |
+| **Model Integrity Verification** | SHA256 hash verification for pickle files |
+| **Input Validation** | Rejects NaN/Inf values and validates feature counts |
+| **Safe Division** | Handles division by zero in price calculations |
+| **API Rate Limiting** | Proper retry logic with exponential backoff for OSM queries |
+
+See [tests/test_security.py](tests/test_security.py) for security test coverage.
 
 ---
 
