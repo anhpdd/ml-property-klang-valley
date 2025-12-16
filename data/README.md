@@ -141,7 +141,7 @@ See [tests/test_security.py](../tests/test_security.py) for security test covera
 **Anh Phan (Robin)**  
 📧 duyanh.phanduc@gmail.com  
 
-💼 [linkedin.com/in/phan-đức-duy-anh](https://www.linkedin.com/in/phan-%C4%91%E1%BB%A3c-duy-anh/)
+💼 [linkedin.com/in/phan-đức-duy-anh](https://www.linkedin.com/in/phan-%C4%91%E1%BB%A9c-duy-anh/)
 
 
 

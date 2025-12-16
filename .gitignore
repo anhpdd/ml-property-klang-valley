@@ -144,6 +144,10 @@ ENV/
 env.bak/
 venv.bak/
 
+# Project-specific config with local paths
+src/config__.py
+notebooks/config_loader.py
+
 # Spyder project settings
 .spyderproject
 .spyproject
