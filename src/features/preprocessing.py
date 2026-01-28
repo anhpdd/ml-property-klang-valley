@@ -215,6 +215,38 @@ def create_preprocessing_pipeline(
     return preprocessor
 
 
+def create_full_preprocessor(
+    distance_cols: list = DISTANCE_COLS,
+    count_cols: list = COUNT_COLS,
+    property_cols: list = PROPERTY_COLS,
+    ridership_cols: list = RIDERSHIP_COLS,
+    categorical_cols: list = CATEGORICAL_FEATURES
+) -> ColumnTransformer:
+    """
+    Create a complete preprocessing pipeline including categorical encoding.
+    """
+    # Log transformation + scaling pipeline for continuous
+    log_scale_pipeline = Pipeline([
+        ('log', FunctionTransformer(np.log1p, feature_names_out='one-to-one')),
+        ('scale', StandardScaler())
+    ])
+
+    # Combined preprocessor
+    full_preprocessor = ColumnTransformer(
+        transformers=[
+            ('distance', log_scale_pipeline, distance_cols),
+            ('counts', log_scale_pipeline, count_cols),
+            ('property', log_scale_pipeline, property_cols),
+            ('ridership', log_scale_pipeline, ridership_cols),
+            ('categorical', OneHotEncoder(drop='first', sparse_output=False,
+             handle_unknown='ignore'), categorical_cols)
+        ],
+        remainder='drop'
+    )
+
+    return full_preprocessor
+
+
 def preprocess_for_training(
     df: pd.DataFrame,
     test_size: float = TEST_SIZE,
@@ -316,6 +348,8 @@ def preprocess_for_training(
 
     # Return everything
     result = {
+        # Original DataFrames (for refitting production transformers)
+        'df_train': X_train,
         # Scaled features
         'X_train': X_train_scaled,
         'X_test': X_test_scaled,

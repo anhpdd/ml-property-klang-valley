@@ -218,22 +218,28 @@ class PropertyPredictor:
         validate: bool = True
     ) -> np.ndarray:
         """
-        Predict property prices.
+        Predict property prices. Automatically transforms raw data if provided.
 
         Args:
-            X: Features (must be preprocessed with exactly 279 features)
+            X: Input features (either raw DataFrame or preprocessed array)
             return_log_space: If True, return predictions in log-space
             validate: If True, validate feature count and values
 
         Returns:
             np.ndarray: Predicted prices (RM/m²)
-
-        Raises:
-            ValueError: If features are invalid (wrong count, NaN, Inf)
         """
         if self.model is None or self.scaler is None:
             logger.info("Model not loaded, loading now...")
             self.load_model()
+
+        # Automatically transform if X is a DataFrame and doesn't match expected count
+        if isinstance(X, pd.DataFrame) and X.shape[1] != EXPECTED_FEATURE_COUNT:
+            logger.info("Detected raw input DataFrame. Applying production preprocessing...")
+            try:
+                X = self.scaler.transform(X)
+            except Exception as e:
+                logger.error(f"Preprocessing failed: {e}")
+                raise ValueError(f"Could not preprocess raw input data: {e}")
 
         logger.info(f"Making predictions for {len(X)} properties...")
 

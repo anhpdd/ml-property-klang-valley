@@ -13,7 +13,7 @@ from datetime import datetime
 
 from src.data import load_interim_data
 from src.features import preprocess_for_training
-from src.features.preprocessing import clean_property_data, fill_missing_values
+from src.features.preprocessing import clean_property_data, fill_missing_values, create_full_preprocessor
 from src.models import train_all_models, compare_models
 from src.models.trainer import save_model
 from src.config import (
@@ -103,6 +103,12 @@ def main():
         temporal_split=args.temporal_split
     )
 
+    # Fit a full preprocessor on the TRAINING data for production use
+    # (Bundles continuous scaling and categorical encoding)
+    logger.info("Fitting full production preprocessor...")
+    full_preprocessor = create_full_preprocessor()
+    full_preprocessor.fit(preprocessed['df_train'])
+
     # Train models
     logger.info(f"Training models with {args.cv_folds}-fold CV...")
     trained_models, cv_results = train_all_models(
@@ -136,10 +142,10 @@ def main():
         logger.info(f"Saving {args.save_best} model...")
         save_model(trained_models[args.save_best], model_path, args.save_best)
 
-        logger.info(f"Saving preprocessor/scaler...")
+        logger.info(f"Saving production preprocessor...")
         import pickle
         with open(scaler_path, 'wb') as f:
-            pickle.dump(preprocessed['preprocessor'], f)
+            pickle.dump(full_preprocessor, f)
 
         # Save metadata
         logger.info("Saving model metadata...")
