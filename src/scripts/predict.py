@@ -5,12 +5,8 @@ Make predictions on new property data using trained model.
 
 import argparse
 import logging
-import sys
-from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
-
-from src.models import PropertyPredictor, load_and_predict
+from src.models import load_and_predict
 from src.config import PRODUCTION_MODEL, SCALER_MODEL
 
 logging.basicConfig(
@@ -69,10 +65,14 @@ def main():
     # Print summary
     logger.info("\n=== Prediction Summary ===")
     logger.info(f"Total properties: {len(results)}")
-    logger.info(f"Mean predicted price: RM {results['predicted_price_m2'].mean():,.2f}/m²")
-    logger.info(f"Median predicted price: RM {results['predicted_price_m2'].median():,.2f}/m²")
-    logger.info(f"Min predicted price: RM {results['predicted_price_m2'].min():,.2f}/m²")
-    logger.info(f"Max predicted price: RM {results['predicted_price_m2'].max():,.2f}/m²")
+    logger.info(
+        f"Mean predicted price: RM {results['predicted_price_m2'].mean():,.2f}/m²")
+    logger.info(
+        f"Median predicted price: RM {results['predicted_price_m2'].median():,.2f}/m²")
+    logger.info(
+        f"Min predicted price: RM {results['predicted_price_m2'].min():,.2f}/m²")
+    logger.info(
+        f"Max predicted price: RM {results['predicted_price_m2'].max():,.2f}/m²")
 
     if args.output:
         logger.info(f"✅ Predictions saved to {args.output}")

@@ -44,7 +44,8 @@ class TestPathTraversal:
         try:
             _validate_file_path(test_file, check_allowed_dirs=False)
         except DataSecurityError:
-            pytest.fail("Valid path within project should not raise DataSecurityError")
+            pytest.fail(
+                "Valid path within project should not raise DataSecurityError")
 
     def test_validate_file_path_traversal_blocked(self):
         """Test that path traversal attempts are blocked."""

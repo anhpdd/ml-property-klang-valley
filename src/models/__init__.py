@@ -7,7 +7,7 @@ on new property data.
 
 from .trainer import train_model, get_regression_models, train_all_models
 from .evaluator import evaluate_model, calculate_metrics, compare_models
-from .predictor import PropertyPredictor, predict_property_price
+from .predictor import PropertyPredictor, predict_property_price, load_and_predict, predict_from_features
 
 __all__ = [
     'train_model',
@@ -17,5 +17,7 @@ __all__ = [
     'calculate_metrics',
     'compare_models',
     'PropertyPredictor',
-    'predict_property_price'
+    'predict_property_price',
+    'load_and_predict',
+    'predict_from_features'
 ]

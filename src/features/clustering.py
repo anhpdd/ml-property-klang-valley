@@ -55,7 +55,8 @@ def cluster_market_segments(
     Note:
         See notebooks/4_Clustering.ipynb for detailed implementation.
     """
-    logger.info(f"Starting market segmentation clustering for {len(df)} properties")
+    logger.info(
+        f"Starting market segmentation clustering for {len(df)} properties")
 
     df = df.copy()
 
@@ -66,12 +67,14 @@ def cluster_market_segments(
         district_col: 'first'
     }).reset_index()
 
-    logger.info(f"Aggregated {len(df)} properties into {len(road_centroids)} unique roads")
+    logger.info(
+        f"Aggregated {len(df)} properties into {len(road_centroids)} unique roads")
 
     # Step 2: Cluster the road centroids
     if method == 'auto':
         # Try DBSCAN first
-        road_centroids, noise_ratio = _cluster_with_dbscan(road_centroids, lat_col, lon_col)
+        road_centroids, noise_ratio = _cluster_with_dbscan(
+            road_centroids, lat_col, lon_col)
 
         # Fall back to K-Means if too much noise
         if noise_ratio > DBSCAN_MAX_NOISE_THRESHOLD:
@@ -79,25 +82,30 @@ def cluster_market_segments(
                 f"DBSCAN produced {noise_ratio:.1%} noise points (threshold: {DBSCAN_MAX_NOISE_THRESHOLD:.1%}). "
                 f"Falling back to K-Means."
             )
-            road_centroids = _cluster_with_kmeans(road_centroids, lat_col, lon_col)
+            road_centroids = _cluster_with_kmeans(
+                road_centroids, lat_col, lon_col)
     elif method == 'dbscan':
-        road_centroids, noise_ratio = _cluster_with_dbscan(road_centroids, lat_col, lon_col)
+        road_centroids, noise_ratio = _cluster_with_dbscan(
+            road_centroids, lat_col, lon_col)
     elif method == 'kmeans':
         road_centroids = _cluster_with_kmeans(road_centroids, lat_col, lon_col)
     else:
-        raise ValueError(f"Unknown clustering method: {method}. Must be 'auto', 'dbscan', or 'kmeans'")
+        raise ValueError(
+            f"Unknown clustering method: {method}. Must be 'auto', 'dbscan', or 'kmeans'")
 
     # Step 3: Assign cluster IDs with district prefixes
     road_centroids = assign_cluster_ids(road_centroids, district_col)
 
     # Step 4: Map clusters back to original properties
     df = df.merge(
-        road_centroids[[road_col, 'market_cluster_id', 'market_cluster', 'clustering_method', 'is_noise']],
+        road_centroids[[road_col, 'market_cluster_id',
+                        'market_cluster', 'clustering_method', 'is_noise']],
         on=road_col,
         how='left'
     )
 
-    logger.info(f"✅ Clustering complete: {df['market_cluster_id'].nunique()} unique market segments created")
+    logger.info(
+        f"✅ Clustering complete: {df['market_cluster_id'].nunique()} unique market segments created")
 
     return df
 
@@ -222,7 +230,8 @@ def _find_optimal_eps(coords: np.ndarray) -> float:
     eps_max = np.percentile(k_distances, DBSCAN_EPS_PERCENTILE_MAX * 100)
     eps = (eps_min + eps_max) / 2
 
-    logger.info(f"Optimal epsilon: {eps:.6f} (range: {eps_min:.6f} - {eps_max:.6f})")
+    logger.info(
+        f"Optimal epsilon: {eps:.6f} (range: {eps_min:.6f} - {eps_max:.6f})")
 
     return eps
 

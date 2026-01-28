@@ -7,15 +7,12 @@ Corresponds to notebook 4 in the pipeline.
 
 import argparse
 import logging
-import sys
-from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from src.data import load_interim_data, save_interim_data
 from src.features import cluster_market_segments
 from src.features.clustering import get_cluster_statistics
-from src.config import ensure_directories, WITH_FEATURES_DATA, CLUSTERED_DATA
+from src.config import ensure_directories, CLUSTERED_DATA
 
 logging.basicConfig(
     level=logging.INFO,
@@ -83,7 +80,8 @@ def main():
     save_interim_data(df_clustered, output_path, stage_name="clustered")
 
     logger.info("✅ Clustering complete!")
-    logger.info(f"Created {df_clustered['market_cluster_id'].nunique()} market segments")
+    logger.info(
+        f"Created {df_clustered['market_cluster_id'].nunique()} market segments")
 
 
 if __name__ == '__main__':

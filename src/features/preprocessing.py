@@ -66,7 +66,8 @@ def clean_property_data(df: pd.DataFrame) -> pd.DataFrame:
             )
 
         # Safe division - invalid values become NaN
-        df['price_m2'] = df['transaction_price'] / df['land_m2'].replace(0, np.nan)
+        df['price_m2'] = df['transaction_price'] / \
+            df['land_m2'].replace(0, np.nan)
 
         # Check for infinite values that might result from very small land_m2
         inf_count = np.isinf(df['price_m2']).sum()
@@ -78,17 +79,20 @@ def clean_property_data(df: pd.DataFrame) -> pd.DataFrame:
             df.loc[np.isinf(df['price_m2']), 'price_m2'] = np.nan
 
         valid_count = df['price_m2'].notna().sum()
-        logger.info(f"Recalculated price_m2 based on land_m2 ({valid_count} valid values)")
+        logger.info(
+            f"Recalculated price_m2 based on land_m2 ({valid_count} valid values)")
 
     # Convert negative unit levels (LG = Lower Ground) to 0 (Ground)
     if 'unit_level' in df.columns:
         negative_count = (df['unit_level'] < 0).sum()
         if negative_count > 0:
             df.loc[df['unit_level'] < 0, 'unit_level'] = 0
-            logger.info(f"Converted {negative_count} negative unit_level values to 0")
+            logger.info(
+                f"Converted {negative_count} negative unit_level values to 0")
 
     # Drop redundant columns
-    columns_to_drop_actual = [col for col in COLUMNS_TO_DROP if col in df.columns]
+    columns_to_drop_actual = [
+        col for col in COLUMNS_TO_DROP if col in df.columns]
     if columns_to_drop_actual:
         df.drop(columns=columns_to_drop_actual, inplace=True)
         logger.info(f"Dropped {len(columns_to_drop_actual)} redundant columns")
@@ -270,13 +274,16 @@ def preprocess_for_training(
 
     # Step 3: Create and fit transformers on TRAINING data only
     # Continuous features
-    continuous_cols = [col for col in CONTINUOUS_FEATURES if col in X_train.columns]
+    continuous_cols = [
+        col for col in CONTINUOUS_FEATURES if col in X_train.columns]
     preprocessor = create_preprocessing_pipeline()
     preprocessor.fit(X_train[continuous_cols])
 
     # Categorical features
-    categorical_cols = [col for col in CATEGORICAL_FEATURES if col in X_train.columns]
-    encoder = OneHotEncoder(drop='first', sparse_output=False, handle_unknown='ignore')
+    categorical_cols = [
+        col for col in CATEGORICAL_FEATURES if col in X_train.columns]
+    encoder = OneHotEncoder(
+        drop='first', sparse_output=False, handle_unknown='ignore')
     encoder.fit(X_train[categorical_cols])
 
     # Step 4: Transform all datasets
@@ -300,10 +307,12 @@ def preprocess_for_training(
 
     # Step 5: Get feature names
     continuous_feature_names = preprocessor.get_feature_names_out().tolist()
-    categorical_feature_names = encoder.get_feature_names_out(categorical_cols).tolist()
+    categorical_feature_names = encoder.get_feature_names_out(
+        categorical_cols).tolist()
     all_feature_names = continuous_feature_names + categorical_feature_names
 
-    logger.info(f"✅ Preprocessing complete: {len(all_feature_names)} total features")
+    logger.info(
+        f"✅ Preprocessing complete: {len(all_feature_names)} total features")
 
     # Return everything
     result = {

@@ -38,10 +38,10 @@ Custom Workflows
 from .loaders import (
     # Main pipeline
     load_and_clean_data,
-    
+
     # Data loading
     load_yearly_data,
-    
+
     # Individual cleaning functions (for custom workflows)
     clean_column_names,
     clean_numeric_columns,
@@ -54,10 +54,10 @@ from .loaders import (
 from .geocoding import (
     # Main pipeline
     run_geocoding_pipeline,
-    
+
     # Configuration
     GeocodingConfig,
-    
+
     # Core functions (for custom workflows)
     setup_geocoder,
     geocode_unique_roads,
@@ -65,7 +65,7 @@ from .geocoding import (
     enrich_dataframe_with_geocodes,
     calculate_geocoding_stats,
     save_geocoding_results,
-    
+
     # Checkpoint management
     load_checkpoint,
     save_checkpoint,
@@ -75,27 +75,27 @@ from .geocoding import (
 from .validation import (
     # Main pipeline
     run_spatial_validation_pipeline,
-    
+
     # Configuration
     OSMConfig,
-    
+
     # Geometry extraction
     extract_geometries_for_ways,
     fetch_way_geometry,
     extract_line_from_way,
-    
+
     # District boundaries
     create_district_geodataframe,
     DISTRICT_OSM_IDS,
-    
+
     # Spatial validation
     validate_road_locations,
-    
+
     # Complex polygon processing
     stitch_relation_polygons,
     fetch_relation_geometry,
     create_geometry_from_coords,
-    
+
     # Caching
     OSMCache,
 )
@@ -107,11 +107,11 @@ __all__ = [
     'load_and_clean_data',
     'run_geocoding_pipeline',
     'run_spatial_validation_pipeline',
-    
+
     # === CONFIGURATION CLASSES ===
     'GeocodingConfig',
     'OSMConfig',
-    
+
     # === DATA LOADING ===
     'load_yearly_data',
     'clean_column_names',
@@ -119,7 +119,7 @@ __all__ = [
     'swap_mismatched_areas',
     'clean_and_process_addresses',
     'clean_unit_level',
-    
+
     # === GEOCODING ===
     'setup_geocoder',
     'geocode_unique_roads',
@@ -129,7 +129,7 @@ __all__ = [
     'save_geocoding_results',
     'load_checkpoint',
     'save_checkpoint',
-    
+
     # === SPATIAL VALIDATION ===
     'extract_geometries_for_ways',
     'fetch_way_geometry',
@@ -140,7 +140,7 @@ __all__ = [
     'fetch_relation_geometry',
     'create_geometry_from_coords',
     'OSMCache',
-    
+
     # === CONSTANTS ===
     'DISTRICT_OSM_IDS',
 ]
@@ -149,4 +149,4 @@ __all__ = [
 # ===== VERSION INFO =====
 __version__ = '1.0.0'
 __author__ = 'Duy Anh'
-__description__ = 'Property valuation data pipeline for Shah Alam LRT3 corridor analysis'
+__description__ = 'Property valuation data pipeline for Klang Valley residential property analysis'

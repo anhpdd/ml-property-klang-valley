@@ -7,12 +7,9 @@ Corresponds to notebook 5 in the pipeline.
 
 import argparse
 import logging
-import sys
 import json
-from pathlib import Path
 from datetime import datetime
 
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from src.data import load_interim_data
 from src.features import preprocess_for_training
@@ -21,7 +18,6 @@ from src.models import train_all_models, compare_models
 from src.models.trainer import save_model
 from src.config import (
     ensure_directories,
-    CLUSTERED_DATA,
     PRODUCTION_MODEL,
     SCALER_MODEL,
     MODEL_METADATA
@@ -129,7 +125,8 @@ def main():
     )
 
     print("\n=== Model Comparison Results ===")
-    print(comparison[['Ranking', 'Model', 'Test_Orig R2', 'Test_Orig MAPE']].to_string())
+    print(comparison[['Ranking', 'Model',
+          'Test_Orig R2', 'Test_Orig MAPE']].to_string())
 
     # Save best model
     if args.save_best and args.save_best in trained_models:
@@ -146,7 +143,8 @@ def main():
 
         # Save metadata
         logger.info("Saving model metadata...")
-        best_metrics = comparison[comparison['Model'] == args.save_best].iloc[0]
+        best_metrics = comparison[comparison['Model']
+                                  == args.save_best].iloc[0]
 
         metadata = {
             "model_name": args.save_best,

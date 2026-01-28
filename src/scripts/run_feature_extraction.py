@@ -7,15 +7,12 @@ Corresponds to notebooks 2.1, 2.2, and 3 in the pipeline.
 
 import argparse
 import logging
-import sys
-from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
-from src.data import load_interim_data, save_interim_data
+from src.data import load_interim_data, save_interim_data, load_raw_data
 from src.features import extract_amenity_features, extract_transit_ridership
 from src.features.geospatial import fill_missing_distances
-from src.config import ensure_directories, GEOCODED_DATA, WITH_FEATURES_DATA
+from src.config import ensure_directories, WITH_FEATURES_DATA
 
 logging.basicConfig(
     level=logging.INFO,

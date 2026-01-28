@@ -51,9 +51,9 @@ Stage 3: Verify geometry is within expected district
 ### Implementation
 
 **Notebooks:**
-- [`0_Geocode_Names_to_Way_ID.ipynb`](notebooks/0_Geocode_Names_to_Way_ID.ipynb) - Automated geocoding
-- [`1_1__coord_to_wayid_manual.ipynb`](notebooks/1_1__coord_to_wayid_manual.ipynb) - Manual verification
-- [`1_2_prop_validation.ipynb`](notebooks/1_2_prop_validation.ipynb) - Validation pipeline
+- [`02_geocoding_roads.ipynb`](notebooks/02_geocoding_roads.ipynb) - Automated geocoding
+- [`03_manual_geocoding.ipynb`](notebooks/03_manual_geocoding.ipynb) - Manual verification
+- [`04_property_validation.ipynb`](notebooks/04_property_validation.ipynb) - Validation pipeline
 
 ---
 
@@ -108,9 +108,9 @@ df_walk_result = calculate_travel_distances_fastest(
 ### Implementation
 
 **Notebooks:**
-- [`2_1_Amenity_OSM_search.ipynb`](notebooks/2_1_Amenity_OSM_search.ipynb) - Amenity extraction
-- [`2_2_Ridership_data_extraction.ipynb`](notebooks/2_2_Ridership_data_extraction.ipynb) - Transit ridership
-- [`3_Merging.ipynb`](notebooks/3_Merging.ipynb) - Feature consolidation
+- [`05_feature_amenities.ipynb`](notebooks/05_feature_amenities.ipynb) - Amenity extraction
+- [`06_feature_ridership.ipynb`](notebooks/06_feature_ridership.ipynb) - Transit ridership
+- [`07_dataset_merging.ipynb`](notebooks/07_dataset_merging.ipynb) - Feature consolidation
 
 ---
 
@@ -157,7 +157,7 @@ if (labels == -1).sum() / len(labels) > 0.15:
 
 ### Implementation
 
-**Notebook:** [`4_Clustering.ipynb`](notebooks/4_Clustering.ipynb)
+**Notebook:** [`08_location_clustering.ipynb`](notebooks/08_location_clustering.ipynb)
 
 ---
 
@@ -245,7 +245,7 @@ grid_search.fit(X_train, y_train)
 
 ### Implementation
 
-**Notebook:** [`5_Modelling.ipynb`](notebooks/5_Modelling.ipynb)
+**Notebook:** [`09_model_training.ipynb`](notebooks/09_model_training.ipynb)
 
 ---
 
@@ -304,8 +304,8 @@ git clone https://github.com/anhpdd/ml-property-valuation-klang-valley.git
 cd ml-property-valuation-klang-valley
 
 # 2. Run notebooks sequentially
-jupyter notebook notebooks/0_Geocode_Names_to_Way_ID.ipynb
-# ... continue through notebooks 1-5
+jupyter notebook notebooks/01_data_cleaning.ipynb
+# ... continue through notebooks 1-9
 
 # 3. View trained model
 python

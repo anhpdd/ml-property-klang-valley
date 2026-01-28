@@ -8,7 +8,7 @@ The production Random Forest model (`production_model_rf_pre2025.pkl`) is **380 
 
 **What's included instead:**
 - ✅ Complete model metadata and specifications (this README + `model_metadata.json`)
-- ✅ Full training pipeline in [`5_Modelling.ipynb`](../notebooks/5_Modelling.ipynb)
+- ✅ Full training pipeline in [`09_model_training.ipynb`](../notebooks/09_model_training.ipynb)
 - ✅ Exact preprocessing steps documented below
 - ✅ Performance metrics and validation results
 - ✅ Fitted StandardScaler (`scaler_pre2025.pkl`, 5 MB)
@@ -18,14 +18,15 @@ The production Random Forest model (`production_model_rf_pre2025.pkl`) is **380 
 **Option A: Interactive Notebooks (Recommended for Learning)**
 ```bash
 # Run the complete pipeline:
-notebooks/0_Geocode_Names_to_Way_ID.ipynb     # 1. Automated geocoding
-notebooks/1_1__coord_to_wayid_manual.ipynb    # 2. Manual verification
-notebooks/1_2_prop_validation.ipynb           # 3. Validation
-notebooks/2_1_Amenity_OSM_Search.ipynb        # 4. Extract features
-notebooks/2_2_Ridership_Data_Extraction.ipynb # 5. Add ridership
-notebooks/3_Merging.ipynb                     # 6. Combine features
-notebooks/4_Clustering.ipynb                  # 7. Create clusters
-notebooks/5_Modelling.ipynb                   # 8. Train Random Forest ← YOU ARE HERE
+notebooks/01_data_cleaning.ipynb      # 1. Data cleaning
+notebooks/02_geocoding_roads.ipynb     # 2. Automated geocoding
+notebooks/03_manual_geocoding.ipynb    # 3. Manual verification
+notebooks/04_property_validation.ipynb # 4. Validation
+notebooks/05_feature_amenities.ipynb   # 5. Extract features
+notebooks/06_feature_ridership.ipynb   # 6. Add ridership
+notebooks/07_dataset_merging.ipynb     # 7. Combine features
+notebooks/08_location_clustering.ipynb # 8. Create clusters
+notebooks/09_model_training.ipynb      # 9. Train Random Forest ← YOU ARE HERE
 ```
 
 **Option B: Automated Pipeline (Recommended for Production)**
@@ -353,9 +354,9 @@ See [tests/test_security.py](../tests/test_security.py) for security test covera
 ## 📚 Additional Resources
 
 - **Complete Model Metadata:** [`model_metadata.json`](model_metadata.json) for machine-readable specifications
-- **Training Notebook:** [`5_Modelling.ipynb`](../notebooks/5_Modelling.ipynb) - Full model selection and evaluation
-- **Feature Engineering:** [`2_1_Amenity_OSM_Search.ipynb`](../notebooks/2_1_Amenity_OSM_Search.ipynb) - Geospatial feature extraction
-- **Market Clustering:** [`4_Clustering.ipynb`](../notebooks/4_Clustering.ipynb) - DBSCAN spatial clustering methodology
+- **Training Notebook:** [`09_model_training.ipynb`](../notebooks/09_model_training.ipynb) - Full model selection and evaluation
+- **Feature Engineering:** [`05_feature_amenities.ipynb`](../notebooks/05_feature_amenities.ipynb) - Geospatial feature extraction
+- **Market Clustering:** [`08_location_clustering.ipynb`](../notebooks/08_location_clustering.ipynb) - DBSCAN spatial clustering methodology
 
 ---
 

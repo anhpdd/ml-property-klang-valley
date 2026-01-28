@@ -8,7 +8,6 @@ import logging
 from typing import Dict, Optional, Tuple
 
 import numpy as np
-import pandas as pd
 from sklearn.linear_model import LinearRegression, Ridge, Lasso
 from sklearn.tree import DecisionTreeRegressor
 from sklearn.ensemble import RandomForestRegressor, GradientBoostingRegressor
@@ -20,7 +19,6 @@ import lightgbm as lgb
 from ..config import (
     RANDOM_STATE,
     CV_FOLDS,
-    AVAILABLE_MODELS
 )
 
 logger = logging.getLogger(__name__)
@@ -168,7 +166,8 @@ def train_all_models(
     all_models = get_regression_models()
 
     if models_to_train:
-        all_models = {k: v for k, v in all_models.items() if k in models_to_train}
+        all_models = {k: v for k, v in all_models.items()
+                      if k in models_to_train}
 
     trained_models = {}
     cv_results_all = {}

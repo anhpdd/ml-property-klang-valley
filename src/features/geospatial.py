@@ -6,21 +6,21 @@ amenity counts, and transit ridership data.
 """
 
 import logging
-import time
-from typing import Dict, List, Optional, Tuple
+from typing import List, Optional, Dict, Tuple, Any
 
 import pandas as pd
 import numpy as np
+import geopandas as gpd
+import networkx as nx
+import osmnx as ox
+from shapely.geometry import Point
 from tqdm import tqdm
 
 from ..config import (
     OSM_AMENITY_TAGS,
     AMENITY_SEARCH_RADIUS_KM,
-    OSM_API_RATE_LIMIT,
-    OSM_MAX_RETRIES,
-    OSM_RETRY_BACKOFF,
     DISTANCE_COLS,
-    COUNT_COLS
+    DISTRICT_OSM_IDS
 )
 
 logger = logging.getLogger(__name__)
@@ -28,172 +28,297 @@ logger = logging.getLogger(__name__)
 
 def extract_amenity_features(
     df: pd.DataFrame,
-    amenity_types: Optional[List[str]] = None,
-    show_progress: bool = True
+    amenity_gdf: Optional[gpd.GeoDataFrame] = None,
+    radius_km: float = AMENITY_SEARCH_RADIUS_KM
 ) -> pd.DataFrame:
     """
     Extract amenity-based features for all properties.
+    Includes counts within radius and distances (placeholder for full network calculation).
 
     Args:
-        df: DataFrame with property locations (must have lat/lon)
-        amenity_types: List of amenity types to extract (defaults to all in config)
-        show_progress: Whether to show progress bar
+        df: DataFrame with property locations (must have latitude/longitude or geometry)
+        amenity_gdf: GeoDataFrame with amenities. If None, queries OSM.
+        radius_km: Search radius for counting amenities.
 
     Returns:
         pd.DataFrame: DataFrame with amenity features added
-
-    Note:
-        This is a high-level orchestrator. See notebooks/2_1_Amenity_OSM_search.ipynb
-        for detailed implementation using osmnx.features_from_place().
     """
-    if amenity_types is None:
-        amenity_types = list(OSM_AMENITY_TAGS.keys())
+    if 'geometry' not in df.columns and 'latitude' in df.columns and 'longitude' in df.columns:
+        df = gpd.GeoDataFrame(
+            df,
+            geometry=gpd.points_from_xy(df.longitude, df.latitude),
+            crs="EPSG:4326"
+        )
+    elif not isinstance(df, gpd.GeoDataFrame):
+        logger.error(
+            "Input DataFrame must be a GeoDataFrame or have lat/lon columns")
+        return df
 
-    logger.info(f"Extracting {len(amenity_types)} amenity types for {len(df)} properties")
+    if amenity_gdf is None:
+        logger.info("Amenity GeoDataFrame not provided, fetching from OSM...")
+        pois = get_amenities_from_osm(DISTRICT_OSM_IDS, OSM_AMENITY_TAGS)
+        amenity_df = pd.DataFrame(pois)
+        amenity_df['geometry'] = amenity_df['geometry_coords'].apply(
+            lambda x: Point(x[1], x[0]) if isinstance(x, tuple) else None
+        )
+        amenity_gdf = gpd.GeoDataFrame(amenity_df.dropna(
+            subset=['geometry']), crs="EPSG:4326")
+        amenity_gdf = amenity_gdf.rename(columns={'category': 'feature_type'})
 
-    df = df.copy()
+    logger.info(
+        f"Extracting features for {len(df)} properties using {len(amenity_gdf)} amenities")
 
-    # Extract each amenity type
-    for amenity in amenity_types:
-        logger.info(f"Processing {amenity} amenities...")
+    # 1. Count amenities within radius
+    df = count_amenities_within_radius(df, amenity_gdf, radius_km)
 
-        # TODO: Implement OSM querying
-        # 1. Query OSM for amenities: ox.features_from_place(district, tags=OSM_AMENITY_TAGS[amenity])
-        # 2. Calculate straight-line distances
-        # 3. Calculate network walking distances
-        # 4. Count amenities within radius
+    # 2. Calculate nearest amenity distances (Haversine as baseline)
+    for amenity_type in amenity_gdf['feature_type'].str.lower().unique():
+        logger.info(f"Calculating distances to nearest {amenity_type}...")
+        type_amenities = amenity_gdf[amenity_gdf['feature_type'].str.lower(
+        ) == amenity_type]
+        col_name = f'dist_to_{amenity_type}'
 
-        # Placeholder columns
-        df[f'dist_to_{amenity}'] = np.nan
-        df[f'walk_dist_to_{amenity}'] = np.nan
-        df[f'{amenity}_count'] = 0
-
-        time.sleep(OSM_API_RATE_LIMIT)  # Rate limiting
-
-    logger.info("Amenity feature extraction complete")
+        # Simple nearest neighbor distance (Haversine fallback)
+        df[col_name] = df.geometry.apply(
+            lambda x: type_amenities.distance(
+                x).min() * 111.32  # Rough km conversion for 4326
+        )
 
     return df
 
 
 def calculate_distances(
-    properties_df: pd.DataFrame,
-    amenities_df: pd.DataFrame,
-    distance_type: str = 'haversine',
-    lat_col: str = 'latitude',
-    lon_col: str = 'longitude'
-) -> pd.DataFrame:
+    property_gdf: gpd.GeoDataFrame,
+    amenity_gdf: gpd.GeoDataFrame,
+    G: nx.MultiDiGraph,
+    network_type: str = 'walk',
+    max_distance_km: float = 21.0
+) -> gpd.GeoDataFrame:
     """
-    Calculate distances between properties and amenities.
+    Calculate travel distances along a road network from properties to nearest amenities.
 
     Args:
-        properties_df: DataFrame with property locations
-        amenities_df: DataFrame with amenity locations
-        distance_type: Type of distance ('haversine', 'network')
-        lat_col: Latitude column name
-        lon_col: Longitude column name
+        property_gdf: GeoDataFrame of properties
+        amenity_gdf: GeoDataFrame of amenities
+        G: NetworkX graph of the road network
+        network_type: Type of network ('walk' or 'drive')
+        max_distance_km: Maximum search distance in km
 
     Returns:
-        pd.DataFrame: Properties with distance column added
-
-    Note:
-        For network distances, requires road network graph from osmnx.
-        See notebooks/2_1_Amenity_OSM_search.ipynb for implementation.
+        gpd.GeoDataFrame: Updated GeoDataFrame with distance columns
     """
-    logger.info(
-        f"Calculating {distance_type} distances for "
-        f"{len(properties_df)} properties to {len(amenities_df)} amenities"
+    logger.info(f"Calculating {network_type} distances using network graph...")
+
+    # CRS alignment
+    graph_crs = G.graph.get('crs', 'EPSG:4326')
+    if property_gdf.crs != graph_crs:
+        property_gdf = property_gdf.to_crs(graph_crs)
+    if amenity_gdf.crs != graph_crs:
+        amenity_gdf = amenity_gdf.to_crs(graph_crs)
+
+    result_gdf = property_gdf.copy()
+    cutoff_meters = max_distance_km * 1000
+
+    # Map to nearest nodes
+    logger.info("Mapping properties and amenities to network nodes...")
+    prop_nodes = ox.nearest_nodes(
+        G,
+        result_gdf.geometry.x.to_list(),
+        result_gdf.geometry.y.to_list()
     )
 
-    # TODO: Implement distance calculation
-    if distance_type == 'haversine':
-        # Use haversine formula for straight-line distance
-        # distances = calculate_haversine_distances(properties_df, amenities_df)
-        pass
-    elif distance_type == 'network':
-        # Use osmnx shortest path for walking distance
-        # distances = calculate_network_distances(properties_df, amenities_df, road_graph)
-        pass
-    else:
-        raise ValueError(f"Unknown distance type: {distance_type}")
+    amenity_nodes = ox.nearest_nodes(
+        G,
+        amenity_gdf.geometry.x.to_list(),
+        amenity_gdf.geometry.y.to_list()
+    )
 
-    logger.warning("calculate_distances not fully implemented - placeholder only")
+    amenity_nodes_series = pd.Series(amenity_nodes, index=amenity_gdf.index)
 
-    return properties_df
+    # Create amenity type lookup
+    amenity_type_nodes = {}
+    for amenity_type in amenity_gdf['feature_type'].dropna().unique():
+        type_name = str(amenity_type).lower().replace(' ', '_')
+        amenity_indices = amenity_gdf[amenity_gdf['feature_type']
+                                      == amenity_type].index
+        amenity_type_nodes[type_name] = set(
+            amenity_nodes_series.loc[amenity_indices])
+
+        col_name = f"{network_type}_dist_to_{type_name}" if network_type == 'walk' else f"dist_to_{type_name}"
+        result_gdf[col_name] = np.nan
+
+    # Process each property
+    logger.info("Calculating shortest paths...")
+    for i, prop_node in enumerate(tqdm(prop_nodes, desc=f"{network_type.capitalize()} distances")):
+        try:
+            distances = nx.single_source_dijkstra_path_length(
+                G, prop_node, cutoff=cutoff_meters, weight='length'
+            )
+
+            for type_name, target_nodes in amenity_type_nodes.items():
+                col_name = f"{network_type}_dist_to_{type_name}" if network_type == 'walk' else f"dist_to_{type_name}"
+
+                min_dist = min(
+                    (distances[node]
+                     for node in target_nodes if node in distances),
+                    default=np.nan
+                )
+
+                result_gdf.iloc[i, result_gdf.columns.get_loc(
+                    col_name)] = min_dist / 1000
+        except Exception as e:
+            continue
+
+    return result_gdf
 
 
 def count_amenities_within_radius(
-    properties_df: pd.DataFrame,
-    amenities_df: pd.DataFrame,
+    properties_gdf: gpd.GeoDataFrame,
+    amenities_gdf: gpd.GeoDataFrame,
     radius_km: float = AMENITY_SEARCH_RADIUS_KM,
-    amenity_name: str = 'amenity'
-) -> pd.DataFrame:
+    amenity_type_col: str = 'feature_type'
+) -> gpd.GeoDataFrame:
     """
-    Count number of amenities within radius of each property.
+    Count number of amenities of each type within a radius of each property.
 
     Args:
-        properties_df: DataFrame with property locations
-        amenities_df: DataFrame with amenity locations
+        properties_gdf: GeoDataFrame with property locations
+        amenities_gdf: GeoDataFrame with amenity locations
         radius_km: Search radius in kilometers
-        amenity_name: Name of amenity type for column naming
+        amenity_type_col: Column name for amenity type
 
     Returns:
-        pd.DataFrame: Properties with count column added
+        gpd.GeoDataFrame: Properties with count columns added
     """
-    logger.info(
-        f"Counting {amenity_name} within {radius_km}km for "
-        f"{len(properties_df)} properties"
+    logger.info(f"Counting amenities within {radius_km}km radius...")
+
+    result_gdf = properties_gdf.copy()
+
+    # Ensure matching projected CRS for accurate buffering
+    # Using EPSG:3857 for rough metric buffering, or better a local UTM
+    orig_crs = properties_gdf.crs
+    properties_proj = properties_gdf.to_crs(
+        epsg=32648)  # UTM 48N (Peninsular Malaysia)
+    amenities_proj = amenities_gdf.to_crs(epsg=32648)
+
+    # Buffer properties
+    radius_meters = radius_km * 1000
+    properties_proj['buffered_geom'] = properties_proj.geometry.buffer(
+        radius_meters)
+
+    # Set buffered geometry as active for join
+    properties_proj = properties_proj.set_geometry('buffered_geom')
+
+    # Spatial join
+    joined = gpd.sjoin(
+        amenities_proj[[amenity_type_col, 'geometry']],
+        properties_proj[['buffered_geom']],
+        how='inner',
+        predicate='within'
     )
 
-    # TODO: Implement radius count
-    # 1. For each property, calculate distances to all amenities
-    # 2. Count amenities within radius_km
-    # 3. Add count column
+    # Group and count
+    if not joined.empty:
+        counts = joined.groupby(
+            [joined.index_right, amenity_type_col]).size().unstack(fill_value=0)
 
-    properties_df = properties_df.copy()
-    properties_df[f'{amenity_name}_count'] = 0
+        for amenity_type in counts.columns:
+            col_name = f"{str(amenity_type).lower().replace(' ', '_')}_count"
+            result_gdf[col_name] = counts[amenity_type]
+            result_gdf[col_name] = result_gdf[col_name].fillna(0).astype(int)
 
-    logger.warning("count_amenities_within_radius not fully implemented - placeholder only")
+    # Fill missing columns that might not have been found at all
+    unique_types = amenities_gdf[amenity_type_col].unique()
+    for amenity_type in unique_types:
+        col_name = f"{str(amenity_type).lower().replace(' ', '_')}_count"
+        if col_name not in result_gdf.columns:
+            result_gdf[col_name] = 0
 
-    return properties_df
+    return result_gdf
 
 
 def extract_transit_ridership(
     df: pd.DataFrame,
-    ridership_data_path: Optional[str] = None
+    ridership_df: pd.DataFrame,
+    amenity_gdf: gpd.GeoDataFrame,
+    radius_km: float = 1.0,
+    date_col: str = 'date'
 ) -> pd.DataFrame:
     """
-    Extract transit ridership features.
-
-    Aggregates Rapid KL (LRT/MRT) ridership data and assigns to properties
-    within 1km of stations.
+    Extract transit ridership features by matching properties to nearby stations.
 
     Args:
-        df: DataFrame with property locations
-        ridership_data_path: Path to ridership CSV data
+        df: Property DataFrame
+        ridership_df: Ridership timeseries DataFrame
+        amenity_gdf: GeoDataFrame containing rail stations
+        radius_km: Matching radius
+        date_col: Name of date column in both dataframes
 
     Returns:
         pd.DataFrame: DataFrame with ridership features added
-
-    Note:
-        See notebooks/2_2_Ridership_data_extraction.ipynb for implementation
-        using Prasarana Malaysia ridership data.
     """
-    logger.info(f"Extracting transit ridership for {len(df)} properties")
+    logger.info("Extracting transit ridership features...")
 
-    df = df.copy()
+    if 'station_id' not in ridership_df.columns:
+        ridership_df['station_id'] = ridership_df['station_name'].str.split(
+            ':').str[0]
 
-    # TODO: Implement ridership extraction
-    # 1. Load ridership data from Prasarana Malaysia
-    # 2. Match properties to nearby stations (within 1km)
-    # 3. Aggregate incoming/outgoing ridership
+    # Standardize dates
+    df[date_col] = pd.to_datetime(df[date_col])
+    ridership_df[date_col] = pd.to_datetime(ridership_df[date_col])
 
-    # Placeholder columns
-    df['incoming_ridership_within_1km'] = 0
-    df['outgoing_ridership_within_1km'] = 0
+    # Filter for rail stations
+    rail_stations = amenity_gdf[amenity_gdf['feature_type'].str.lower(
+    ) == 'rail station'].copy()
+    if 'station_id' not in rail_stations.columns:
+        # Try to extract from name if not present
+        rail_stations['station_id'] = rail_stations['name'].str.extract(
+            r'([A-Z]+\d+)')
 
-    logger.warning("extract_transit_ridership not fully implemented - placeholder only")
+    # Join ridership with stations
+    stations_with_ridership = rail_stations.merge(
+        ridership_df, on='station_id', how='inner'
+    )
 
-    return df
+    # Spatial join properties to buffered stations
+    # (Simplified implementation: uses station points and buffers them)
+    stations_proj = stations_with_ridership.to_crs(epsg=32648)
+    stations_proj['geometry'] = stations_proj.geometry.buffer(radius_km * 1000)
+
+    prop_gdf = gpd.GeoDataFrame(
+        df, geometry=gpd.points_from_xy(df.longitude, df.latitude), crs="EPSG:4326"
+    ).to_crs(epsg=32648)
+
+    # Rename columns to avoid conflicts
+    stations_proj = stations_proj.rename(columns={date_col: 'ridership_date'})
+    prop_gdf = prop_gdf.rename(columns={date_col: 'prop_date'})
+
+    # Spatial join
+    joined = gpd.sjoin(prop_gdf, stations_proj,
+                       how='inner', predicate='within')
+
+    # Filter for matching months
+    joined = joined[
+        (joined['prop_date'].dt.year == joined['ridership_date'].dt.year) &
+        (joined['prop_date'].dt.month == joined['ridership_date'].dt.month)
+    ]
+
+    # Aggregate by property index
+    ridership_features = joined.groupby(joined.index).agg({
+        'incoming': 'sum',
+        'outgoing': 'sum'
+    })
+
+    result_df = df.copy()
+    result_df['incoming_ridership_within_1km'] = ridership_features['incoming']
+    result_df['outgoing_ridership_within_1km'] = ridership_features['outgoing']
+
+    result_df['incoming_ridership_within_1km'] = result_df['incoming_ridership_within_1km'].fillna(
+        0)
+    result_df['outgoing_ridership_within_1km'] = result_df['outgoing_ridership_within_1km'].fillna(
+        0)
+
+    return result_df
 
 
 def calculate_haversine_distance(
@@ -206,35 +331,25 @@ def calculate_haversine_distance(
     Calculate haversine distance between two points.
 
     Args:
-        lat1: Latitude of point 1 (degrees)
-        lon1: Longitude of point 1 (degrees)
-        lat2: Latitude of point 2 (degrees)
-        lon2: Longitude of point 2 (degrees)
+        lat1, lon1: Coordinates of point 1
+        lat2, lon2: Coordinates of point 2
 
     Returns:
         float: Distance in kilometers
     """
     from math import radians, sin, cos, sqrt, atan2
 
-    # Earth radius in kilometers
-    R = 6371.0
+    R = 6371.0  # Earth radius in km
 
-    # Convert to radians
-    lat1_rad = radians(lat1)
-    lon1_rad = radians(lon1)
-    lat2_rad = radians(lat2)
-    lon2_rad = radians(lon2)
+    lat1, lon1, lat2, lon2 = map(radians, [lat1, lon1, lat2, lon2])
 
-    # Haversine formula
-    dlat = lat2_rad - lat1_rad
-    dlon = lon2_rad - lon1_rad
+    dlat = lat2 - lat1
+    dlon = lon2 - lon1
 
-    a = sin(dlat / 2)**2 + cos(lat1_rad) * cos(lat2_rad) * sin(dlon / 2)**2
+    a = sin(dlat / 2)**2 + cos(lat1) * cos(lat2) * sin(dlon / 2)**2
     c = 2 * atan2(sqrt(a), sqrt(1 - a))
 
-    distance = R * c
-
-    return distance
+    return R * c
 
 
 def get_nearest_amenity_distance(
@@ -246,20 +361,11 @@ def get_nearest_amenity_distance(
 ) -> float:
     """
     Get distance to nearest amenity from a property.
-
-    Args:
-        prop_lat: Property latitude
-        prop_lon: Property longitude
-        amenities_df: DataFrame of amenities with coordinates
-        lat_col: Latitude column in amenities_df
-        lon_col: Longitude column in amenities_df
-
-    Returns:
-        float: Distance to nearest amenity in km
     """
     if len(amenities_df) == 0:
         return np.inf
 
+    # Vectorized haversine would be faster but this is simple
     distances = amenities_df.apply(
         lambda row: calculate_haversine_distance(
             prop_lat, prop_lon,
@@ -278,35 +384,22 @@ def fill_missing_distances(
 ) -> pd.DataFrame:
     """
     Fill missing distance values with district-level max.
-
-    Args:
-        df: DataFrame with distance columns
-        distance_cols: List of distance column names
-        max_distance: Cap value if district max is also missing
-
-    Returns:
-        pd.DataFrame: DataFrame with filled distances
     """
-    logger.info(f"Filling missing values in {len(distance_cols)} distance columns")
+    logger.info(
+        f"Filling missing values in {len(distance_cols)} distance columns")
 
     df = df.copy()
 
     for col in distance_cols:
         if col not in df.columns:
-            logger.warning(f"Column {col} not found in DataFrame")
             continue
 
         # Fill with district-level max
-        district_max = df.groupby('district')[col].transform('max')
-        df[col] = df[col].fillna(district_max).fillna(max_distance)
+        if 'district' in df.columns:
+            district_max = df.groupby('district')[col].transform('max')
+            df[col] = df[col].fillna(district_max)
 
-        # Round to 3 decimal places
+        df[col] = df[col].fillna(max_distance)
         df[col] = round(df[col], 3)
-
-    missing_after = df[distance_cols].isnull().sum().sum()
-    if missing_after == 0:
-        logger.info("✅ All distance missing values filled successfully")
-    else:
-        logger.warning(f"⚠️ {missing_after} missing values remain")
 
     return df
