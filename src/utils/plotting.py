@@ -180,7 +180,8 @@ def plot_cluster_map(
         For interactive maps, use folium. This creates a static matplotlib plot.
         See notebooks/4_Clustering.ipynb for folium implementation.
     """
-    logger.info(f"Plotting cluster map for {df[cluster_col].nunique()} clusters")
+    logger.info(
+        f"Plotting cluster map for {df[cluster_col].nunique()} clusters")
 
     fig, ax = plt.subplots(figsize=(14, 10))
 
@@ -237,7 +238,8 @@ def plot_residuals(
     axes[0].grid(True, linestyle='--', alpha=0.3)
 
     # Residual histogram
-    axes[1].hist(residuals, bins=50, color=COLORS['blue'], alpha=0.7, edgecolor='black')
+    axes[1].hist(residuals, bins=50, color=COLORS['blue'],
+                 alpha=0.7, edgecolor='black')
     axes[1].axvline(x=0, color=COLORS['red'], linestyle='--')
     axes[1].set_xlabel('Residuals')
     axes[1].set_ylabel('Frequency')
@@ -285,7 +287,8 @@ def plot_model_comparison(
     ax.set_yticks(range(len(results_sorted)))
     ax.set_yticklabels(results_sorted['Model'], fontsize=11)
     ax.set_xlabel(metric, fontsize=12)
-    ax.set_title(f'Model Comparison - {metric}', fontsize=14, fontweight='bold')
+    ax.set_title(f'Model Comparison - {metric}',
+                 fontsize=14, fontweight='bold')
     ax.invert_yaxis()
     ax.grid(axis='x', alpha=0.3, linestyle='--')
 

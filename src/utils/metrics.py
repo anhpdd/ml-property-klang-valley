@@ -66,7 +66,8 @@ def mean_absolute_percentage_error(
             y_pred = y_pred[~zero_mask]
 
             if len(y_true) == 0:
-                raise ValueError("All values are zero - cannot calculate MAPE.")
+                raise ValueError(
+                    "All values are zero - cannot calculate MAPE.")
         elif zero_handling == 'epsilon':
             logger.warning(
                 f"Replacing {zero_count} zero values with epsilon for MAPE calculation."
@@ -107,7 +108,8 @@ def calculate_metrics(
     }
 
     if include_mape:
-        metrics[f"{prefix}mape"] = mean_absolute_percentage_error(y_true, y_pred)
+        metrics[f"{prefix}mape"] = mean_absolute_percentage_error(
+            y_true, y_pred)
 
     return metrics
 
@@ -137,7 +139,8 @@ def calculate_price_accuracy(
     # Handle zero values safely
     zero_mask = np.abs(y_true) < 1e-10
     if zero_mask.all():
-        raise ValueError("All y_true values are zero - cannot calculate accuracy.")
+        raise ValueError(
+            "All y_true values are zero - cannot calculate accuracy.")
 
     if zero_mask.any():
         zero_count = zero_mask.sum()
@@ -194,7 +197,8 @@ def calculate_price_bands_accuracy(
         y_true_band = y_true[mask]
         y_pred_band = y_pred[mask]
 
-        metrics = calculate_metrics(y_true_band, y_pred_band, include_mape=True)
+        metrics = calculate_metrics(
+            y_true_band, y_pred_band, include_mape=True)
         metrics['n_properties'] = mask.sum()
 
         results[name] = metrics

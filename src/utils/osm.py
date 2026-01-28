@@ -6,10 +6,12 @@ Utilities for querying OSM data with retry logic and rate limiting.
 
 import logging
 import time
-from typing import Optional
+from typing import Optional, Dict, List, Any
+import requests
+import xml.etree.ElementTree as ET
+import overpy
 
 from ..config import (
-    OSM_API_TIMEOUT,
     OSM_API_RATE_LIMIT,
     OSM_MAX_RETRIES,
     OSM_RETRY_BACKOFF
@@ -115,8 +117,10 @@ def query_osm_with_retry(
 
             # Check if error is transient
             if not _is_transient_error(e):
-                logger.error(f"Non-transient OSM error (not retrying): {type(e).__name__}: {e}")
-                raise OSMQueryError(f"OSM query failed with non-transient error: {e}") from e
+                logger.error(
+                    f"Non-transient OSM error (not retrying): {type(e).__name__}: {e}")
+                raise OSMQueryError(
+                    f"OSM query failed with non-transient error: {e}") from e
 
             if attempt < max_retries - 1:
                 logger.warning(
@@ -124,7 +128,8 @@ def query_osm_with_retry(
                     f"{type(e).__name__}: {e}"
                 )
             else:
-                logger.error(f"OSM query failed after {max_retries} attempts: {e}")
+                logger.error(
+                    f"OSM query failed after {max_retries} attempts: {e}")
 
     raise OSMQueryError(
         f"OSM query failed after {max_retries} attempts. Last error: {last_error}"
@@ -170,39 +175,200 @@ def geocode_with_osm(address: str, retries: int = OSM_MAX_RETRIES) -> Optional[d
     return None
 
 
-def get_amenities_from_place(
-    place_name: str,
-    tags: dict,
-    retries: int = OSM_MAX_RETRIES
-):
+def build_overpass_query(area_ids: Dict[str, str], categories: Dict[str, Dict[str, str]]) -> str:
     """
-    Query OSM for amenities in a place.
+    Builds a correctly formatted Overpass QL query for multiple areas and categories.
 
     Args:
-        place_name: Name of place to query
-        tags: OSM tags dictionary (e.g., {'amenity': 'school'})
-        retries: Number of retry attempts
+        area_ids: Dictionary mapping area names to their OSM relation IDs.
+        categories: Dictionary mapping category names to their OSM tag filters.
 
     Returns:
-        GeoDataFrame with amenities
-
-    Note:
-        This is a placeholder. For full implementation, use osmnx.features_from_place()
-        See notebooks/2_1_Amenity_OSM_search.ipynb for reference.
+        str: The Overpass QL query string.
     """
-    logger.warning("get_amenities_from_place not fully implemented - placeholder only")
+    query_parts = []
 
-    # TODO: Implement using osmnx
-    # Example:
-    # import osmnx as ox
-    # amenities = query_osm_with_retry(
-    #     ox.features_from_place,
-    #     place_name,
-    #     tags=tags
-    # )
-    # return amenities
+    for area_name, rel_id in area_ids.items():
+        area_id_for_query = int(rel_id) + 3600000000
 
-    return None
+        for category_name, tag_dict in categories.items():
+            tag_filters = ''.join(
+                [f'["{k}"="{v}"]' for k, v in tag_dict.items()])
+            query_parts.append(
+                f'  nwr{tag_filters}(area:{area_id_for_query});')
+
+    query_body = '\n'.join(query_parts)
+
+    full_query = f"""
+[out:json][timeout:240];
+(
+{query_body}
+);
+(._;>>;);
+out center;
+"""
+    return full_query
+
+
+def parse_overpy_element(element, categories: Dict[str, Dict[str, str]]) -> Dict[str, Any]:
+    """
+    Parses a single overpy element into a structured dictionary.
+
+    Args:
+        element: The overpy element (Node, Way, or Relation).
+        categories: POI category definitions for matching.
+
+    Returns:
+        dict: Parsed POI data.
+    """
+    category = "Unknown"
+
+    for cat_name, tag_dict in categories.items():
+        if all(element.tags.get(k) == v for k, v in tag_dict.items()):
+            category = cat_name
+            break
+
+    geometry = None
+    if isinstance(element, overpy.Node):
+        geometry = (float(element.lat), float(element.lon))
+    elif isinstance(element, overpy.Way):
+        if element.nodes:
+            geometry = [(float(node.lat), float(node.lon))
+                        for node in element.nodes]
+    elif isinstance(element, overpy.Relation):
+        if hasattr(element, 'center_lat') and element.center_lat is not None:
+            geometry = (float(element.center_lat), float(element.center_lon))
+
+    return {
+        "osm_id": element.id,
+        "osm_type": element.__class__.__name__.lower(),
+        "name": element.tags.get("name", "N/A"),
+        "category": category,
+        "tags": dict(element.tags),
+        "geometry_coords": geometry
+    }
+
+
+def get_amenities_from_osm(area_ids: Dict[str, str], categories: Dict[str, Dict[str, str]]) -> List[Dict[str, Any]]:
+    """
+    Query Overpass API for amenities in specified areas.
+
+    Args:
+        area_ids: Dictionary of area names and OSM IDs.
+        categories: Dictionary of POI categories and tags.
+
+    Returns:
+        list: List of parsed POI dictionaries.
+    """
+    query = build_overpass_query(area_ids, categories)
+    api = overpy.Overpass()
+
+    logger.info(
+        f"Querying Overpass API for {len(categories)} types in {len(area_ids)} areas")
+
+    try:
+        result = query_osm_with_retry(api.query, query)
+
+        all_pois = []
+        for elements in [result.nodes, result.ways, result.relations]:
+            for element in elements:
+                poi = parse_overpy_element(element, categories)
+                if poi['category'] != 'Unknown' and poi['geometry_coords'] is not None:
+                    all_pois.append(poi)
+
+        logger.info(f"Successfully parsed {len(all_pois)} POIs")
+        return all_pois
+
+    except Exception as e:
+        logger.error(f"Failed to fetch amenities: {e}")
+        return []
+
+
+def get_node_coordinates(node_id: str) -> Optional[Dict[str, Any]]:
+    """
+    Fetches the coordinates and metadata of a node from OSM API.
+
+    Args:
+        node_id: The OSM node ID.
+
+    Returns:
+        dict: Node metadata including lat, lon, name, and ref.
+    """
+    url = f"https://api.openstreetmap.org/api/0.6/node/{node_id}"
+    try:
+        response = requests.get(url, timeout=10)
+        response.raise_for_status()
+        root = ET.fromstring(response.content)
+
+        node = root.find('node')
+        if node is not None:
+            lat = node.get('lat')
+            lon = node.get('lon')
+            name = None
+            ref = None
+            for tag in node.findall('tag'):
+                k = tag.get('k')
+                v = tag.get('v')
+                if k == 'name':
+                    name = v
+                elif k == 'ref':
+                    ref = v
+            return {
+                'lat': float(lat) if lat else None,
+                'lon': float(lon) if lon else None,
+                'name': name,
+                'ref': ref
+            }
+        return None
+
+    except Exception as e:
+        logger.warning(f"Error processing node {node_id}: {e}")
+        return None
+
+
+def get_train_route_data(train_id: str) -> List[Dict[str, Any]]:
+    """
+    Fetches stop data for a given train line relation ID.
+
+    Args:
+        train_id: The OSM relation ID for the train route.
+
+    Returns:
+        list: List of station metadata dictionaries.
+    """
+    url = f'https://www.openstreetmap.org/api/0.6/relation/{train_id}'
+    stations = []
+
+    try:
+        response = requests.get(url, timeout=10)
+        response.raise_for_status()
+        root = ET.fromstring(response.content)
+
+        for relation in root.findall('relation'):
+            # Basic route info
+            route_name = None
+            route_ref = None
+            for tag in relation.findall('tag'):
+                if tag.get('k') == 'name':
+                    route_name = tag.get('v')
+                if tag.get('k') == 'ref':
+                    route_ref = tag.get('v')
+
+            for member in relation.findall('member'):
+                if member.get('type') == 'node':
+                    node_id = member.get('ref')
+                    node_data = get_node_coordinates(node_id)
+                    if node_data:
+                        node_data['node_id'] = node_id
+                        node_data['route_name'] = route_name
+                        node_data['route_ref'] = route_ref
+                        stations.append(node_data)
+
+        return stations
+
+    except Exception as e:
+        logger.error(f"Error fetching train data for {train_id}: {e}")
+        return []
 
 
 def download_road_network(
@@ -225,7 +391,8 @@ def download_road_network(
         This is a placeholder. For full implementation, use osmnx.graph_from_place()
         See notebooks/2_1_Amenity_OSM_search.ipynb for reference.
     """
-    logger.warning("download_road_network not fully implemented - placeholder only")
+    logger.warning(
+        "download_road_network not fully implemented - placeholder only")
 
     # TODO: Implement using osmnx
     # Example:

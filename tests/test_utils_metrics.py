@@ -20,7 +20,8 @@ class TestCalculateMetrics:
         y_true = np.array([100, 200, 300, 400, 500])
         y_pred = np.array([110, 190, 310, 390, 510])
 
-        metrics = calculate_metrics(y_true, y_pred, prefix="test", include_mape=True)
+        metrics = calculate_metrics(
+            y_true, y_pred, prefix="test", include_mape=True)
 
         assert 'test_mse' in metrics
         assert 'test_rmse' in metrics
@@ -76,7 +77,8 @@ class TestMAPE:
         y_pred = np.array([110, 10, 190])
 
         # Should not raise, zeros excluded
-        mape = mean_absolute_percentage_error(y_true, y_pred, zero_handling='exclude')
+        mape = mean_absolute_percentage_error(
+            y_true, y_pred, zero_handling='exclude')
 
         # Only non-zero values used: (10% + 5%) / 2 = 7.5%
         assert 6 < mape < 9
@@ -87,7 +89,8 @@ class TestMAPE:
         y_pred = np.array([110, 10, 190])
 
         with pytest.raises(ValueError, match="zero/near-zero values"):
-            mean_absolute_percentage_error(y_true, y_pred, zero_handling='raise')
+            mean_absolute_percentage_error(
+                y_true, y_pred, zero_handling='raise')
 
     def test_mape_with_zeros_epsilon(self):
         """Test MAPE with epsilon replacement for zeros."""
@@ -95,7 +98,8 @@ class TestMAPE:
         y_pred = np.array([110, 10, 190])
 
         # Should not raise
-        mape = mean_absolute_percentage_error(y_true, y_pred, zero_handling='epsilon')
+        mape = mean_absolute_percentage_error(
+            y_true, y_pred, zero_handling='epsilon')
 
         assert mape > 0
 
@@ -105,7 +109,8 @@ class TestMAPE:
         y_pred = np.array([10, 20, 30])
 
         with pytest.raises(ValueError, match="All values are zero"):
-            mean_absolute_percentage_error(y_true, y_pred, zero_handling='exclude')
+            mean_absolute_percentage_error(
+                y_true, y_pred, zero_handling='exclude')
 
     def test_mape_invalid_mode_raises(self):
         """Test MAPE raises for invalid zero handling mode."""
@@ -114,7 +119,8 @@ class TestMAPE:
         y_pred = np.array([110, 10, 190])
 
         with pytest.raises(ValueError, match="Unknown zero_handling mode"):
-            mean_absolute_percentage_error(y_true, y_pred, zero_handling='invalid')
+            mean_absolute_percentage_error(
+                y_true, y_pred, zero_handling='invalid')
 
 
 class TestPriceAccuracy:
@@ -138,7 +144,8 @@ class TestPriceAccuracy:
         accuracy = calculate_price_accuracy(y_true, y_pred, tolerance=0.15)
 
         # 2 out of 3 within 15%
-        assert accuracy['accuracy_within_tolerance'] == pytest.approx(66.67, rel=0.01)
+        assert accuracy['accuracy_within_tolerance'] == pytest.approx(
+            66.67, rel=0.01)
 
     def test_price_accuracy_with_zeros(self):
         """Test price accuracy excludes zero values."""

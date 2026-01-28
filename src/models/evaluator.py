@@ -60,7 +60,8 @@ def calculate_metrics(
 
     # Only calculate MAPE if requested (for original space, not log space)
     if include_mape:
-        mape = mean_absolute_percentage_error(y_true, y_pred) * 100  # Convert to percentage
+        mape = mean_absolute_percentage_error(
+            y_true, y_pred) * 100  # Convert to percentage
         metrics[f"{prefix}MAPE"] = mape
 
     return metrics
@@ -198,7 +199,8 @@ def compare_models(
     logger.info(f"✅ Model comparison complete")
     logger.info(f"Top 3 models by Test R²:")
     for idx, row in df.head(3).iterrows():
-        logger.info(f"  {idx+1}. {row['Model']}: R²={row['Test_Orig R2']:.4f}, MAPE={row['Test_Orig MAPE']:.2f}%")
+        logger.info(
+            f"  {idx+1}. {row['Model']}: R²={row['Test_Orig R2']:.4f}, MAPE={row['Test_Orig MAPE']:.2f}%")
 
     return df
 
@@ -227,7 +229,8 @@ def plot_model_performance(
         save_path: Optional path to save figure
     """
     fig, axes = plt.subplots(2, 2, figsize=(18, 12))
-    fig.suptitle(f'Performance Analysis for: {model_name}', fontsize=16, y=0.995)
+    fig.suptitle(
+        f'Performance Analysis for: {model_name}', fontsize=16, y=0.995)
 
     # ===== ROW 1: LOG SPACE =====
     plot_df_train_log = pd.DataFrame({
@@ -242,11 +245,11 @@ def plot_model_performance(
 
     # Training Set - Log Space
     sns.lineplot(x=np.arange(len(plot_df_train_log)), y='Predicted',
-                data=plot_df_train_log, color=COLORS['red'], label='Predicted Values',
-                ax=axes[0, 0], zorder=1)
+                 data=plot_df_train_log, color=COLORS['red'], label='Predicted Values',
+                 ax=axes[0, 0], zorder=1)
     sns.scatterplot(x=np.arange(len(plot_df_train_log)), y='Actual',
-                   data=plot_df_train_log, label='Actual Values',
-                   ax=axes[0, 0], zorder=2, alpha=0.6)
+                    data=plot_df_train_log, label='Actual Values',
+                    ax=axes[0, 0], zorder=2, alpha=0.6)
     axes[0, 0].set_title('Training Set - Log Space')
     axes[0, 0].set_xlabel('Sample Index (Sorted by Actual Value)')
     axes[0, 0].set_ylabel('Log(Price)')
@@ -255,11 +258,11 @@ def plot_model_performance(
 
     # Test Set - Log Space
     sns.lineplot(x=np.arange(len(plot_df_test_log)), y='Predicted',
-                data=plot_df_test_log, color=COLORS['red'], label='Predicted Values',
-                ax=axes[0, 1], zorder=1)
+                 data=plot_df_test_log, color=COLORS['red'], label='Predicted Values',
+                 ax=axes[0, 1], zorder=1)
     sns.scatterplot(x=np.arange(len(plot_df_test_log)), y='Actual',
-                   data=plot_df_test_log, label='Actual Values',
-                   ax=axes[0, 1], zorder=2, alpha=0.6)
+                    data=plot_df_test_log, label='Actual Values',
+                    ax=axes[0, 1], zorder=2, alpha=0.6)
     axes[0, 1].set_title('Test Set - Log Space')
     axes[0, 1].set_xlabel('Sample Index (Sorted by Actual Value)')
     axes[0, 1].set_ylabel('Log(Price)')
@@ -279,11 +282,11 @@ def plot_model_performance(
 
     # Training Set - Original Scale
     sns.lineplot(x=np.arange(len(plot_df_train_orig)), y='Predicted',
-                data=plot_df_train_orig, color=COLORS['red'], label='Predicted Values',
-                ax=axes[1, 0], zorder=1)
+                 data=plot_df_train_orig, color=COLORS['red'], label='Predicted Values',
+                 ax=axes[1, 0], zorder=1)
     sns.scatterplot(x=np.arange(len(plot_df_train_orig)), y='Actual',
-                   data=plot_df_train_orig, label='Actual Values',
-                   ax=axes[1, 0], zorder=2, alpha=0.6)
+                    data=plot_df_train_orig, label='Actual Values',
+                    ax=axes[1, 0], zorder=2, alpha=0.6)
     axes[1, 0].set_title('Training Set - Original Scale (RM/sqm)')
     axes[1, 0].set_xlabel('Sample Index (Sorted by Actual Value)')
     axes[1, 0].set_ylabel('Price (RM/sqm)')
@@ -292,11 +295,11 @@ def plot_model_performance(
 
     # Test Set - Original Scale
     sns.lineplot(x=np.arange(len(plot_df_test_orig)), y='Predicted',
-                data=plot_df_test_orig, color=COLORS['red'], label='Predicted Values',
-                ax=axes[1, 1], zorder=1)
+                 data=plot_df_test_orig, color=COLORS['red'], label='Predicted Values',
+                 ax=axes[1, 1], zorder=1)
     sns.scatterplot(x=np.arange(len(plot_df_test_orig)), y='Actual',
-                   data=plot_df_test_orig, label='Actual Values',
-                   ax=axes[1, 1], zorder=2, alpha=0.6)
+                    data=plot_df_test_orig, label='Actual Values',
+                    ax=axes[1, 1], zorder=2, alpha=0.6)
     axes[1, 1].set_title('Test Set - Original Scale (RM/sqm)')
     axes[1, 1].set_xlabel('Sample Index (Sorted by Actual Value)')
     axes[1, 1].set_ylabel('Price (RM/sqm)')

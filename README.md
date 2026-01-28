@@ -20,7 +20,7 @@
 
 **For Technical Details:** See [Technical Documentation](TECHNICAL.md)
 
-**Best Notebook to Review:** [`5_Modelling.ipynb`](notebooks/5_Modelling.ipynb)
+**Best Notebook to Review:** [`09_model_training.ipynb`](notebooks/09_model_training.ipynb)
 
 **Production Package:** [`src/`](src/) - Python package for automated pipelines and deployment
 
@@ -183,15 +183,16 @@ ml-property-klang-valley/
 ├── models/
 │   ├── README.md               # Model specifications
 │   └── model_metadata.json     # Hyperparameters & metrics
-├── notebooks/                   # 7-stage analysis pipeline
-│   ├── 0_Geocode_Names_to_Way_ID.ipynb
-│   ├── 1_1__coord_to_wayid_manual.ipynb
-│   ├── 1_2_prop_validation.ipynb
-│   ├── 2_1_Amenity_OSM_search.ipynb
-│   ├── 2_2_Ridership_data_extraction.ipynb
-│   ├── 3_Merging.ipynb
-│   ├── 4_Clustering.ipynb
-│   └── 5_Modelling.ipynb        # ← Start here
+├── notebooks/                   # 9-stage analysis pipeline
+│   ├── 01_data_cleaning.ipynb
+│   ├── 02_geocoding_roads.ipynb
+│   ├── 03_manual_geocoding.ipynb
+│   ├── 04_property_validation.ipynb
+│   ├── 05_feature_amenities.ipynb
+│   ├── 06_feature_ridership.ipynb
+│   ├── 07_dataset_merging.ipynb
+│   ├── 08_location_clustering.ipynb
+│   └── 09_model_training.ipynb   # ← Start here
 ├── src/                         # Production Python package
 │   ├── config.py               # Configuration constants
 │   ├── data/                   # Data loading & geocoding
@@ -249,7 +250,7 @@ ml-property-klang-valley/
 
 4. **Launch Jupyter Notebook:**
 ```bash
-   jupyter notebook notebooks/5_Modelling.ipynb
+   jupyter notebook notebooks/09_model_training.ipynb
 ```
 
 ### Option B: Production Package (Recommended for Automation)

@@ -7,13 +7,11 @@ Corresponds to notebooks 0, 1.1, and 1.2 in the pipeline.
 
 import argparse
 import logging
-import sys
 from pathlib import Path
 
 # Add parent directory to path
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
-from src.data import load_raw_data, save_interim_data, geocode_properties, validate_coordinates
+from src.data import run_geocoding_pipeline, run_spatial_validation_pipeline
 from src.config import ensure_directories, GEOCODED_DATA
 
 # Setup logging
@@ -41,18 +39,6 @@ def main():
         help='Path to save geocoded data (default: data/interim/geocoded.csv)'
     )
     parser.add_argument(
-        '--road-col',
-        type=str,
-        default='road_name',
-        help='Column name containing road names (default: road_name)'
-    )
-    parser.add_argument(
-        '--district-col',
-        type=str,
-        default='district',
-        help='Column name containing district names (default: district)'
-    )
-    parser.add_argument(
         '--validate',
         action='store_true',
         help='Validate coordinates after geocoding'
@@ -63,29 +49,24 @@ def main():
     # Ensure directories exist
     ensure_directories()
 
-    # Load data
-    logger.info(f"Loading data from {args.input}")
-    df = load_raw_data(args.input)
-
     # Geocode properties
-    logger.info("Starting geocoding...")
-    df_geocoded = geocode_properties(
-        df,
-        road_col=args.road_col,
-        district_col=args.district_col
+    logger.info("Starting geocoding pipeline...")
+    output_path = Path(args.output) if args.output else GEOCODED_DATA
+
+    df_geocoded = run_geocoding_pipeline(
+        input_file=Path(args.input),
+        output_file=output_path
     )
 
     # Validate coordinates if requested
     if args.validate:
-        logger.info("Validating coordinates...")
-        df_geocoded = validate_coordinates(df_geocoded)
+        logger.info("Starting spatial validation pipeline...")
+        df_geocoded = run_spatial_validation_pipeline(
+            input_file=output_path,
+            output_file=output_path
+        )
 
-    # Save results
-    output_path = args.output if args.output else GEOCODED_DATA
-    logger.info(f"Saving geocoded data to {output_path}")
-    save_interim_data(df_geocoded, output_path, stage_name="geocoded")
-
-    logger.info("✅ Geocoding complete!")
+    logger.info("✅ Geocoding and validation complete!")
 
 
 if __name__ == '__main__':

@@ -5,13 +5,12 @@ Run the complete property valuation pipeline end-to-end.
 Executes all stages: geocoding → feature extraction → clustering → model training
 """
 
+from pathlib import Path
 import argparse
 import logging
 import sys
 import subprocess
-from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from src.config import (
     ensure_directories,

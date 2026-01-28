@@ -5,7 +5,6 @@ Provides a high-level API for making predictions on new property data.
 """
 
 import hashlib
-import json
 import logging
 from pathlib import Path
 from typing import Dict, List, Optional, Union
@@ -14,8 +13,7 @@ import numpy as np
 import pandas as pd
 import pickle
 
-from ..config import PRODUCTION_MODEL, SCALER_MODEL, MODELS_DIR, MODEL_METADATA
-
+from ..config import PRODUCTION_MODEL, SCALER_MODEL, MODELS_DIR
 logger = logging.getLogger(__name__)
 
 # Expected number of features for production model
@@ -23,7 +21,8 @@ EXPECTED_FEATURE_COUNT = 279
 
 # Trusted model hashes (SHA256) - update after training new models
 # Set to None to skip hash verification (development only)
-TRUSTED_MODEL_HASHES: Optional[Dict[str, str]] = None  # TODO: Add hashes after training
+# TODO: Add hashes after training
+TRUSTED_MODEL_HASHES: Optional[Dict[str, str]] = None
 
 
 def _verify_file_hash(file_path: Path, expected_hash: Optional[str] = None) -> bool:
@@ -41,7 +40,8 @@ def _verify_file_hash(file_path: Path, expected_hash: Optional[str] = None) -> b
         SecurityError: If hash doesn't match
     """
     if expected_hash is None:
-        logger.warning(f"Hash verification skipped for {file_path.name} - not recommended for production")
+        logger.warning(
+            f"Hash verification skipped for {file_path.name} - not recommended for production")
         return True
 
     sha256 = hashlib.sha256()
@@ -114,7 +114,7 @@ class PropertyPredictor:
         if not self.model_path.exists():
             raise FileNotFoundError(
                 f"Model file not found: {self.model_path}. "
-                f"Train a model first using notebooks/5_Modelling.ipynb"
+                f"Train a model first using notebooks/09_model_training.ipynb"
             )
 
         # Validate model file is within expected directory (prevent path traversal)
@@ -143,7 +143,7 @@ class PropertyPredictor:
         if not self.scaler_path.exists():
             raise FileNotFoundError(
                 f"Scaler file not found: {self.scaler_path}. "
-                f"Train a model first using notebooks/5_Modelling.ipynb"
+                f"Train a model first using notebooks/09_model_training.ipynb"
             )
 
         # Validate scaler file path
@@ -261,7 +261,8 @@ class PropertyPredictor:
             # Clip to minimum reasonable price
             y_pred = np.maximum(y_pred, 1.0)
 
-        logger.info(f"✅ Predictions complete: mean price = RM {y_pred.mean():,.2f}/m²")
+        logger.info(
+            f"✅ Predictions complete: mean price = RM {y_pred.mean():,.2f}/m²")
 
         return y_pred
 
